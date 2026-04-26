@@ -63,3 +63,9 @@ An interactive **C++/Qt** application for advanced image manipulation, filtering
 │   ├── histogramtab.cpp# Histogram plotting & Equalization
 │   └── utils.cpp       # Image display & UI helper functions
 └── README.md
+```
+
+## 🛠️ Built With
+* Framework: Qt 6
+* Library: OpenCV
+* Language: C++17
