@@ -4,6 +4,10 @@ An interactive **C++/Qt** application for advanced image manipulation, filtering
 ---
 
 ## 🚀 Features & Task Requirements
+![C++](https://img.shields.io/badge/C++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)
+![Qt](https://img.shields.io/badge/Qt-%23217346.svg?style=for-the-badge&logo=Qt&logoColor=white)
+![OpenCV](https://img.shields.io/badge/OpenCV-%23white.svg?style=for-the-badge&logo=opencv&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-%23008FBA.svg?style=for-the-badge&logo=cmake&logoColor=white)
 
 ### 1. Spatial Domain Processing
 * **Noise Generation:** Ability to add various noise models to images.
