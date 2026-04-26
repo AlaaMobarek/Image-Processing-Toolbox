@@ -1,0 +1,320 @@
+#include "mainwindow.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QImage>
+#include <QPixmap>
+#include <cmath>
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+{
+    QWidget *centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+    QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
+
+    QTabWidget *tabWidget = new QTabWidget(this);
+    mainLayout->addWidget(tabWidget);
+
+    // ==========================================
+    // TAB 1: Filters & Edges
+    // ==========================================
+    QWidget *tab1 = new QWidget();
+    QVBoxLayout *tab1Layout = new QVBoxLayout(tab1);
+
+    // --- صف الأدوات اللي فوق ---
+    QHBoxLayout *controlsLayout = new QHBoxLayout();
+
+    QPushButton *btnLoad = new QPushButton("Load Image");
+    QPushButton *btnUndo = new QPushButton("Undo");
+    controlsLayout->addWidget(btnLoad);
+    controlsLayout->addWidget(btnUndo);
+
+    connect(btnLoad, &QPushButton::clicked, this, &MainWindow::onLoadImageClicked);
+    connect(btnUndo, &QPushButton::clicked, this, &MainWindow::onUndoClicked);
+
+    controlsLayout->addSpacing(15);
+
+    // --- Noise ---
+    controlsLayout->addWidget(new QLabel("Noise:"));
+    comboNoise = new QComboBox();
+    comboNoise->addItems({"None", "Uniform", "Gaussian", "Salt & Pepper"});
+    controlsLayout->addWidget(comboNoise);
+
+    noiseParamsStack = new QStackedWidget();
+    noiseParamsStack->addWidget(new QWidget()); // None
+
+    QWidget *pageUniform = new QWidget();
+    QHBoxLayout *layUniform = new QHBoxLayout(pageUniform);
+    layUniform->setContentsMargins(0, 0, 0, 0);
+    spinUniformMin = new QSpinBox(); spinUniformMin->setRange(-255, 255); spinUniformMin->setValue(-50);
+    spinUniformMax = new QSpinBox(); spinUniformMax->setRange(-255, 255); spinUniformMax->setValue(50);
+    layUniform->addWidget(new QLabel("Min:")); layUniform->addWidget(spinUniformMin);
+    layUniform->addWidget(new QLabel("Max:")); layUniform->addWidget(spinUniformMax);
+    noiseParamsStack->addWidget(pageUniform);
+
+    QWidget *pageGauss = new QWidget();
+    QHBoxLayout *layGauss = new QHBoxLayout(pageGauss);
+    layGauss->setContentsMargins(0, 0, 0, 0);
+    spinGaussMean = new QDoubleSpinBox(); spinGaussMean->setRange(-255, 255); spinGaussMean->setValue(0);
+    spinGaussVar = new QDoubleSpinBox(); spinGaussVar->setRange(0, 5000); spinGaussVar->setValue(400);
+    layGauss->addWidget(new QLabel("Mean:")); layGauss->addWidget(spinGaussMean);
+    layGauss->addWidget(new QLabel("Var:")); layGauss->addWidget(spinGaussVar);
+    noiseParamsStack->addWidget(pageGauss);
+
+    QWidget *pageSP = new QWidget();
+    QHBoxLayout *laySP = new QHBoxLayout(pageSP);
+    laySP->setContentsMargins(0, 0, 0, 0);
+    spinSaltPepperProb = new QDoubleSpinBox();
+    spinSaltPepperProb->setRange(0.01, 1.0); spinSaltPepperProb->setSingleStep(0.01); spinSaltPepperProb->setValue(0.05);
+    laySP->addWidget(new QLabel("Prob:")); laySP->addWidget(spinSaltPepperProb);
+    noiseParamsStack->addWidget(pageSP);
+
+    controlsLayout->addWidget(noiseParamsStack);
+
+    QPushButton *btnApplyNoise = new QPushButton("Apply Noise");
+    controlsLayout->addWidget(btnApplyNoise);
+    connect(btnApplyNoise, &QPushButton::clicked, this, &MainWindow::onApplyNoiseClicked);
+
+    connect(comboNoise, QOverload<int>::of(&QComboBox::currentIndexChanged), noiseParamsStack, &QStackedWidget::setCurrentIndex);
+    connect(comboNoise, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::onNoiseTypeChanged);
+
+    controlsLayout->addSpacing(20);
+
+    // --- Filters ---
+    controlsLayout->addWidget(new QLabel("Filter:"));
+    comboFilter = new QComboBox();
+    comboFilter->addItems({"None", "Average", "Gaussian", "Median"});
+    controlsLayout->addWidget(comboFilter);
+
+    controlsLayout->addSpacing(5);
+
+    controlsLayout->addWidget(new QLabel("Mask Size:"));
+    spinMask = new QSpinBox();
+    spinMask->setRange(3, 5);
+    spinMask->setSingleStep(2);
+    controlsLayout->addWidget(spinMask);
+
+    QPushButton *btnApplyFilter = new QPushButton("Apply Filter");
+    controlsLayout->addWidget(btnApplyFilter);
+    connect(btnApplyFilter, &QPushButton::clicked, this, &MainWindow::onApplyFilterClicked);
+
+    controlsLayout->addSpacing(10);
+
+    // --- Edges ---
+    controlsLayout->addWidget(new QLabel("Edge:"));
+    comboEdge = new QComboBox();
+    comboEdge->addItems({"None", "Sobel", "Roberts", "Prewitt", "Canny"});
+    controlsLayout->addWidget(comboEdge);
+
+    QPushButton *btnApplyEdge = new QPushButton("Apply Edge");
+    controlsLayout->addWidget(btnApplyEdge);
+    connect(btnApplyEdge, &QPushButton::clicked, this, &MainWindow::onApplyEdgeClicked);
+
+    controlsLayout->addStretch();
+    tab1Layout->addLayout(controlsLayout);
+
+    // --- صف الصور ---
+    QHBoxLayout *imagesLayout = new QHBoxLayout();
+    imgOriginalLabel = new QLabel("Original Image");
+    imgOriginalLabel->setFrameStyle(QFrame::Box | QFrame::Plain);
+    imgOriginalLabel->setAlignment(Qt::AlignCenter);
+    imgOriginalLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+    imgProcessedLabel = new QLabel("Processed Image");
+    imgProcessedLabel->setFrameStyle(QFrame::Box | QFrame::Plain);
+    imgProcessedLabel->setAlignment(Qt::AlignCenter);
+    imgProcessedLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+    imagesLayout->addWidget(imgOriginalLabel, 1);
+    imagesLayout->addWidget(imgProcessedLabel, 1);
+
+    tab1Layout->addLayout(imagesLayout, 1);
+
+    tabWidget->addTab(tab1, "Filters & Edges");
+
+    // ==========================================
+    // TAB 2: Histograms (التعديل هنا)
+    // ==========================================
+    histTab = new HistogramTab(); // بنعمل object من التاب الجديدة
+    tabWidget->addTab(histTab, "Histograms");
+
+    // ==========================================
+    // TAB 3: Frequency & Hybrid
+    // ==========================================
+    tabWidget->addTab(new QWidget(), "Frequency & Hybrid");
+
+    resize(1250, 700);
+}
+
+MainWindow::~MainWindow() {}
+
+void MainWindow::displayImage(const cv::Mat& img, QLabel* label) {
+    if (img.empty()) return;
+    cv::Mat rgbMat;
+    if (img.channels() == 3) cv::cvtColor(img, rgbMat, cv::COLOR_BGR2RGB);
+    else cv::cvtColor(img, rgbMat, cv::COLOR_GRAY2RGB);
+    QImage qImg(rgbMat.data, rgbMat.cols, rgbMat.rows, rgbMat.step, QImage::Format_RGB888);
+    label->setPixmap(QPixmap::fromImage(qImg).scaled(label->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+void MainWindow::saveToHistory() {
+    if (!processedImage.empty()) imageHistory.push_back(processedImage.clone());
+}
+
+void MainWindow::onLoadImageClicked() {
+    QString fileName = QFileDialog::getOpenFileName(this, "Open Image", "", "Images (*.png *.jpg *.jpeg *.bmp)");
+    if(fileName.isEmpty()) return;
+    originalImage = cv::imread(fileName.toStdString());
+    if(originalImage.empty()) { QMessageBox::warning(this, "Error", "Could not load image!"); return; }
+
+    processedImage = originalImage.clone();
+    imageHistory.clear();
+
+    displayImage(originalImage, imgOriginalLabel);
+    displayImage(processedImage, imgProcessedLabel);
+
+    // التعديل هنا: بنبعت الصورة للتاب التانية عشان تشتغل عليها
+    if (histTab) {
+        histTab->setSourceImage(originalImage);
+    }
+}
+
+void MainWindow::onUndoClicked() {
+    if (!imageHistory.empty()) {
+        processedImage = imageHistory.back();
+        imageHistory.pop_back();
+    } else if (!originalImage.empty()) {
+        processedImage = originalImage.clone();
+    }
+    displayImage(originalImage, imgOriginalLabel);
+    displayImage(processedImage, imgProcessedLabel);
+}
+
+void MainWindow::onNoiseTypeChanged(int index) {
+    if (index == 0 && !originalImage.empty()) {
+        saveToHistory();
+        processedImage = originalImage.clone();
+        displayImage(originalImage, imgOriginalLabel);
+        displayImage(processedImage, imgProcessedLabel);
+    }
+}
+
+void MainWindow::onApplyNoiseClicked() {
+    if (processedImage.empty()) return;
+    int type = comboNoise->currentIndex();
+    if (type == 0) return;
+    saveToHistory();
+    cv::Mat noiseImg = cv::Mat::zeros(processedImage.size(), processedImage.type());
+    cv::Mat result;
+
+    if (type == 1) { // Uniform
+        cv::randu(noiseImg, cv::Scalar::all(spinUniformMin->value()), cv::Scalar::all(spinUniformMax->value()));
+        cv::add(processedImage, noiseImg, result, cv::noArray(), processedImage.type());
+    }
+    else if (type == 2) { // Gaussian
+        cv::randn(noiseImg, cv::Scalar::all(spinGaussMean->value()), cv::Scalar::all(std::sqrt(spinGaussVar->value())));
+        cv::add(processedImage, noiseImg, result, cv::noArray(), processedImage.type());
+    }
+    else if (type == 3) { // Salt & Pepper
+        double prob = spinSaltPepperProb->value();
+        result = processedImage.clone();
+        cv::Mat randMat(result.size(), CV_32F);
+        cv::randu(randMat, 0.0, 1.0);
+        for (int i = 0; i < result.rows; i++) {
+            for (int j = 0; j < result.cols; j++) {
+                float randomValue = randMat.at<float>(i, j);
+                if (randomValue < prob / 2.0) {
+                    if (result.channels() == 3) result.at<cv::Vec3b>(i, j) = cv::Vec3b(0, 0, 0);
+                    else result.at<uchar>(i, j) = 0;
+                } else if (randomValue > 1.0 - (prob / 2.0)) {
+                    if (result.channels() == 3) result.at<cv::Vec3b>(i, j) = cv::Vec3b(255, 255, 255);
+                    else result.at<uchar>(i, j) = 255;
+                }
+            }
+        }
+    }
+    processedImage = result;
+    displayImage(originalImage, imgOriginalLabel);
+    displayImage(processedImage, imgProcessedLabel);
+}
+
+void MainWindow::onApplyFilterClicked() {
+    if (processedImage.empty()) return;
+    int type = comboFilter->currentIndex();
+    if (type == 0) return;
+    saveToHistory();
+    int ksize = spinMask->value();
+    cv::Mat result;
+
+    if (type == 1) { // Average
+        cv::blur(processedImage, result, cv::Size(ksize, ksize));
+    } else if (type == 2) { // Gaussian
+        cv::GaussianBlur(processedImage, result, cv::Size(ksize, ksize), 0);
+    } else if (type == 3) { // Median
+        cv::medianBlur(processedImage, result, ksize);
+    }
+    processedImage = result;
+    displayImage(originalImage, imgOriginalLabel);
+    displayImage(processedImage, imgProcessedLabel);
+}
+
+void MainWindow::onApplyEdgeClicked() {
+    if (processedImage.empty()) return;
+    int type = comboEdge->currentIndex();
+    if (type == 0) return;
+    saveToHistory();
+
+    cv::Mat gray;
+    if (processedImage.channels() == 3) cv::cvtColor(processedImage, gray, cv::COLOR_BGR2GRAY);
+    else gray = processedImage.clone();
+
+    cv::Mat result = cv::Mat::zeros(gray.size(), CV_8UC1);
+
+    if (type == 4) { // Canny
+        cv::Canny(gray, result, 100, 200);
+    } else { // From Scratch
+        int kx[3][3] = {0}, ky[3][3] = {0};
+
+        if (type == 1) { // Sobel
+            int sx[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
+            int sy[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+            memcpy(kx, sx, sizeof(sx)); memcpy(ky, sy, sizeof(sy));
+        } else if (type == 3) { // Prewitt
+            int px[3][3] = {{-1, 0, 1}, {-1, 0, 1}, {-1, 0, 1}};
+            int py[3][3] = {{-1, -1, -1}, {0, 0, 0}, {1, 1, 1}};
+            memcpy(kx, px, sizeof(px)); memcpy(ky, py, sizeof(py));
+        }
+
+        if (type == 2) { // Roberts
+            for (int i = 0; i < gray.rows - 1; i++) {
+                for (int j = 0; j < gray.cols - 1; j++) {
+                    int gx = gray.at<uchar>(i, j) * 1 + gray.at<uchar>(i+1, j+1) * -1;
+                    int gy = gray.at<uchar>(i, j+1) * 1 + gray.at<uchar>(i+1, j) * -1;
+                    int mag = std::sqrt(gx*gx + gy*gy);
+                    result.at<uchar>(i, j) = cv::saturate_cast<uchar>(mag);
+                }
+            }
+        } else { // Sobel & Prewitt
+            for (int i = 1; i < gray.rows - 1; i++) {
+                for (int j = 1; j < gray.cols - 1; j++) {
+                    int gx = 0, gy = 0;
+                    for (int ki = -1; ki <= 1; ki++) {
+                        for (int kj = -1; kj <= 1; kj++) {
+                            int pixel = gray.at<uchar>(i + ki, j + kj);
+                            gx += pixel * kx[ki + 1][kj + 1];
+                            gy += pixel * ky[ki + 1][kj + 1];
+                        }
+                    }
+                    int mag = std::sqrt(gx*gx + gy*gy);
+                    result.at<uchar>(i, j) = cv::saturate_cast<uchar>(mag);
+                }
+            }
+        }
+    }
+    processedImage = result;
+    displayImage(originalImage, imgOriginalLabel);
+    displayImage(processedImage, imgProcessedLabel);
+}

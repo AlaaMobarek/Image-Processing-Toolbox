@@ -1,0 +1,55 @@
+#ifndef HISTOGRAMTAB_H
+#define HISTOGRAMTAB_H
+
+#include <QWidget>
+#include <QLabel>
+#include <QPushButton>
+#include <opencv2/opencv.hpp>
+
+class HistogramTab : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit HistogramTab(QWidget *parent = nullptr);
+    void setSourceImage(const cv::Mat& img);
+
+private slots:
+    void onEqualizeClicked();
+    void onNormalizeClicked();
+    void onResetClicked();
+    void onModeToggled(bool checked); // السلوت الجديد بتاع زرار الـ Toggle
+
+private:
+    cv::Mat sourceImage;
+    cv::Mat processedImage;
+    bool isGrayscaleMode; // متغير عشان نعرف إحنا في أي مود
+
+    // زرار المود
+    QPushButton *btnToggleMode;
+
+    // مربعات عرض الصور
+    QLabel *imgOriginalLabel;
+    QLabel *imgGrayLabel;
+
+    // مربعات عرض الرسومات من جوه
+    QLabel *histRLabel, *histGLabel, *histBLabel;
+    QLabel *cdfRLabel, *cdfGLabel, *cdfBLabel;
+
+    // عناوين الرسومات (عشان نقدر نغير اسمها من Red لـ Grayscale)
+    QLabel *titleHistR, *titleHistG, *titleHistB;
+    QLabel *titleCdfR, *titleCdfG, *titleCdfB;
+
+    // البراويز الخارجية (عشان نخفيها ونظهرها)
+    QWidget *boxHistR, *boxHistG, *boxHistB;
+    QWidget *boxCdfR, *boxCdfG, *boxCdfB;
+
+    void displayImage(const cv::Mat& img, QLabel* label);
+    cv::Mat drawChart(const cv::Mat& data, cv::Scalar color, bool isCDF);
+    void updateViews();
+
+    // عدلنا الدالة دي عشان ترجعلنا كمان مؤشر لعنوان الرسمة
+    QWidget* createBox(const QString& title, QLabel*& outLabel, QLabel*& outTitleLabel);
+};
+
+#endif // HISTOGRAMTAB_H

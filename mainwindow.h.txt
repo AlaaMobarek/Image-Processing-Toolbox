@@ -1,0 +1,61 @@
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QLabel>
+#include <QComboBox>
+#include <QStackedWidget>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <vector>
+#include <opencv2/opencv.hpp>
+#include "histogramtab.h"
+
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+
+private slots:
+    void onLoadImageClicked();
+    void onUndoClicked();
+
+    // دوال النويز والفلاتر والـ Edges
+    void onNoiseTypeChanged(int index);
+    void onApplyNoiseClicked();
+    void onApplyFilterClicked();
+    void onApplyEdgeClicked();
+
+private:
+    // UI Elements
+    QLabel *imgOriginalLabel;
+    QLabel *imgProcessedLabel;
+
+    QComboBox *comboNoise;
+    QStackedWidget *noiseParamsStack;
+    QSpinBox *spinUniformMin, *spinUniformMax;
+    QDoubleSpinBox *spinGaussMean, *spinGaussVar;
+    QDoubleSpinBox *spinSaltPepperProb;
+
+    QComboBox *comboFilter;
+    QSpinBox *spinMask;
+
+    QComboBox *comboEdge;
+
+    HistogramTab *histTab;
+
+    // Image Data
+    cv::Mat originalImage;
+    cv::Mat processedImage;
+    std::vector<cv::Mat> imageHistory;
+
+    // Helper Functions
+    void displayImage(const cv::Mat& img, QLabel* label);
+    void saveToHistory();
+};
+
+#endif // MAINWINDOW_H

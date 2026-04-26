@@ -1,0 +1,309 @@
+#include "histogramtab.h"
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFrame>
+
+HistogramTab::HistogramTab(QWidget *parent) : QWidget(parent)
+{
+    isGrayscaleMode = false; // الديفولت بتاعنا RGB
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+
+    // --- 1. شريط الزراير ---
+    QHBoxLayout *controlsLayout = new QHBoxLayout();
+    QPushButton *btnEqualize = new QPushButton("Equalize Image");
+    QPushButton *btnNormalize = new QPushButton("Normalize Image");
+    QPushButton *btnReset = new QPushButton("Reset Image");
+
+    // الزرار الجديد بتاع الـ Toggle
+    btnToggleMode = new QPushButton("Mode: RGB");
+    btnToggleMode->setCheckable(true); // نخليه بيشتغل كأنه مفتاح (ON/OFF)
+    // ستايل مميز للزرار عشان يبان إنه Toggle
+    btnToggleMode->setStyleSheet("QPushButton:checked { background-color: #555; color: white; border: 1px inset #333; }");
+
+    controlsLayout->addWidget(btnEqualize);
+    controlsLayout->addWidget(btnNormalize);
+    controlsLayout->addWidget(btnReset);
+    controlsLayout->addStretch();
+    controlsLayout->addWidget(btnToggleMode); // ضفناه في الآخر زي ما طلبتي
+
+    connect(btnEqualize, &QPushButton::clicked, this, &HistogramTab::onEqualizeClicked);
+    connect(btnNormalize, &QPushButton::clicked, this, &HistogramTab::onNormalizeClicked);
+    connect(btnReset, &QPushButton::clicked, this, &HistogramTab::onResetClicked);
+    connect(btnToggleMode, &QPushButton::toggled, this, &HistogramTab::onModeToggled);
+
+    mainLayout->addLayout(controlsLayout);
+
+    // --- 2. التصميم الأساسي ---
+    QHBoxLayout *displayLayout = new QHBoxLayout();
+
+    // العمود الأول: الصور (عملنا متغيرات وهمية للعناوين عشان الدالة طالباها بس مش هنحتاجها هنا)
+    QLabel *dummyTitle1, *dummyTitle2;
+    QVBoxLayout *col1Layout = new QVBoxLayout();
+    col1Layout->addWidget(createBox("Input Image", imgOriginalLabel, dummyTitle1));
+    col1Layout->addWidget(createBox("Gray Scale Image", imgGrayLabel, dummyTitle2));
+
+    // العمود الثاني: الـ Histograms
+    QVBoxLayout *col2Layout = new QVBoxLayout();
+    boxHistR = createBox("Histogram (Red)", histRLabel, titleHistR);
+    boxHistG = createBox("Histogram (Green)", histGLabel, titleHistG);
+    boxHistB = createBox("Histogram (Blue)", histBLabel, titleHistB);
+    col2Layout->addWidget(boxHistR); col2Layout->addWidget(boxHistG); col2Layout->addWidget(boxHistB);
+
+    // العمود الثالث: الـ CDFs
+    QVBoxLayout *col3Layout = new QVBoxLayout();
+    boxCdfR = createBox("Distribution Curve (Red)", cdfRLabel, titleCdfR);
+    boxCdfG = createBox("Distribution Curve (Green)", cdfGLabel, titleCdfG);
+    boxCdfB = createBox("Distribution Curve (Blue)", cdfBLabel, titleCdfB);
+    col3Layout->addWidget(boxCdfR); col3Layout->addWidget(boxCdfG); col3Layout->addWidget(boxCdfB);
+
+    displayLayout->addLayout(col1Layout, 2);
+    displayLayout->addLayout(col2Layout, 3);
+    displayLayout->addLayout(col3Layout, 3);
+
+    mainLayout->addLayout(displayLayout);
+}
+
+// دالة بناء الـ Box متعدلة عشان تحفظ العنوان
+QWidget* HistogramTab::createBox(const QString& title, QLabel*& outLabel, QLabel*& outTitleLabel) {
+    QFrame* frame = new QFrame();
+    frame->setStyleSheet("QFrame { background-color: #2b2b2e; border: 1px solid #555; border-radius: 6px; margin: 2px; }"
+                         "QLabel { border: none; background: transparent; }");
+
+    QVBoxLayout* layout = new QVBoxLayout(frame);
+    layout->setContentsMargins(10, 8, 10, 10);
+    layout->setSpacing(4);
+
+    outTitleLabel = new QLabel(title);
+    outTitleLabel->setStyleSheet("color: white; font-weight: bold; font-size: 12px;");
+    layout->addWidget(outTitleLabel);
+
+    QFrame* hline = new QFrame();
+    hline->setFrameShape(QFrame::HLine);
+    hline->setStyleSheet("background-color: #555; max-height: 1px; margin-bottom: 5px;");
+    layout->addWidget(hline);
+
+    outLabel = new QLabel();
+    outLabel->setAlignment(Qt::AlignCenter);
+    outLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    layout->addWidget(outLabel);
+
+    return frame;
+}
+
+// لما ندوس على زرار الـ Toggle
+void HistogramTab::onModeToggled(bool checked) {
+    isGrayscaleMode = checked;
+    if (isGrayscaleMode) {
+        btnToggleMode->setText("Mode: Grayscale");
+    } else {
+        btnToggleMode->setText("Mode: RGB");
+    }
+    updateViews(); // نعيد رسم كل حاجة بناءً على المود الجديد
+}
+
+void HistogramTab::setSourceImage(const cv::Mat& img)
+{
+    if (img.empty()) return;
+    sourceImage = img.clone();
+    processedImage = sourceImage.clone();
+    updateViews();
+}
+
+void HistogramTab::displayImage(const cv::Mat& img, QLabel* label)
+{
+    if (img.empty()) return;
+    cv::Mat rgbMat;
+    if (img.channels() == 3) cv::cvtColor(img, rgbMat, cv::COLOR_BGR2RGB);
+    else cv::cvtColor(img, rgbMat, cv::COLOR_GRAY2RGB);
+
+    QImage qImg(rgbMat.data, rgbMat.cols, rgbMat.rows, rgbMat.step, QImage::Format_RGB888);
+    label->setPixmap(QPixmap::fromImage(qImg).scaled(label->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+// دالة الرسم (زي ما هي بالظبط محتفظة بكل الشياكة اللي عملناها)
+cv::Mat HistogramTab::drawChart(const cv::Mat& data, cv::Scalar color, bool isCDF)
+{
+    int width = 500, height = 220;
+    cv::Mat plot = cv::Mat::zeros(height, width, CV_8UC3);
+
+    int marginLeft = 65, marginRight = 20, marginTop = 35, marginBottom = 30;
+    int plotW = width - marginLeft - marginRight;
+    int plotH = height - marginTop - marginBottom;
+
+    int font = cv::FONT_HERSHEY_SIMPLEX;
+    double fontScale = 0.35;
+    cv::Scalar axisColor(200, 200, 200);
+
+    cv::rectangle(plot, cv::Point(5, 5), cv::Point(width - 5, height - 5), cv::Scalar(60, 60, 60), 1, cv::LINE_AA);
+    cv::line(plot, cv::Point(marginLeft, marginTop), cv::Point(marginLeft, height - marginBottom), axisColor, 1);
+    cv::line(plot, cv::Point(marginLeft, height - marginBottom), cv::Point(width - marginRight, height - marginBottom), axisColor, 1);
+
+    std::string title = "Histogram & Distribution";
+    int baseline = 0;
+    cv::Size textSize = cv::getTextSize(title, font, 0.45, 1, &baseline);
+    cv::putText(plot, title, cv::Point(marginLeft + (plotW - textSize.width)/2, marginTop - 15), font, 0.45, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+
+    int legW = 90, legH = 22;
+    int legX = width - marginRight - legW - 10;
+    int legY = marginTop - 5;
+    cv::rectangle(plot, cv::Rect(legX, legY, legW, legH), cv::Scalar(100, 100, 100), 1, cv::LINE_AA);
+    cv::rectangle(plot, cv::Rect(legX + 5, legY + 6, 20, 10), color, cv::FILLED);
+    cv::putText(plot, isCDF ? "CDF" : "Histogram", cv::Point(legX + 30, legY + 15), font, fontScale, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+
+    cv::Mat yMat = cv::Mat::zeros(25, 90, CV_8UC3);
+    cv::putText(yMat, "Frequency", cv::Point(5, 15), font, 0.4, cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
+    cv::rotate(yMat, yMat, cv::ROTATE_90_COUNTERCLOCKWISE);
+    int yStartY = marginTop + (plotH - 90)/2;
+    yMat.copyTo(plot(cv::Rect(5, yStartY, 25, 90)));
+
+    if (isCDF) {
+        for (int i = 0; i <= 5; ++i) {
+            float val = i * 0.2f;
+            int x = marginLeft + (plotW * i) / 5;
+            char buf[10]; snprintf(buf, sizeof(buf), "%.1f", val);
+            cv::putText(plot, buf, cv::Point(x - 12, height - marginBottom + 18), font, fontScale, axisColor, 1, cv::LINE_AA);
+            cv::line(plot, cv::Point(x, height - marginBottom), cv::Point(x, height - marginBottom + 4), axisColor, 1);
+        }
+    } else {
+        for (int i = 0; i <= 5; ++i) {
+            int val = i * 50;
+            int x = marginLeft + (plotW * val) / 250;
+            char buf[10]; snprintf(buf, sizeof(buf), "%d", val);
+            cv::putText(plot, buf, cv::Point(x - 12, height - marginBottom + 18), font, fontScale, axisColor, 1, cv::LINE_AA);
+            cv::line(plot, cv::Point(x, height - marginBottom), cv::Point(x, height - marginBottom + 4), axisColor, 1);
+        }
+    }
+
+    double minVal, maxVal;
+    cv::minMaxLoc(data, &minVal, &maxVal);
+    if (maxVal == 0) maxVal = 1;
+
+    for (int i = 0; i <= 4; ++i) {
+        int yVal = (maxVal * i) / 4;
+        int yPos = height - marginBottom - (plotH * i) / 4;
+        char buf[20]; snprintf(buf, sizeof(buf), "%d", yVal);
+        cv::putText(plot, buf, cv::Point(marginLeft - 40, yPos + 4), font, fontScale, axisColor, 1, cv::LINE_AA);
+        if(i > 0) cv::line(plot, cv::Point(marginLeft - 4, yPos), cv::Point(marginLeft, yPos), axisColor, 1);
+    }
+
+    cv::Mat normData;
+    cv::normalize(data, normData, 0, plotH, cv::NORM_MINMAX, -1, cv::Mat());
+    float binW = (float)plotW / 256.0f;
+
+    for (int i = 1; i < 256; i++) {
+        int x1 = marginLeft + cvRound(binW * (i - 1));
+        int y1 = height - marginBottom - cvRound(normData.at<float>(i - 1));
+        int x2 = marginLeft + cvRound(binW * i);
+        int y2 = height - marginBottom - cvRound(normData.at<float>(i));
+
+        if (isCDF) {
+            cv::line(plot, cv::Point(x1, y1), cv::Point(x2, y2), color, 2, cv::LINE_AA);
+        } else {
+            cv::rectangle(plot, cv::Point(x1, y1), cv::Point(x2, height - marginBottom), color, cv::FILLED);
+        }
+    }
+    return plot;
+}
+
+void HistogramTab::updateViews()
+{
+    if (processedImage.empty()) return;
+
+    displayImage(processedImage, imgOriginalLabel);
+
+    cv::Mat grayImg;
+    if (processedImage.channels() == 3) cv::cvtColor(processedImage, grayImg, cv::COLOR_BGR2GRAY);
+    else grayImg = processedImage.clone();
+    displayImage(grayImg, imgGrayLabel);
+
+    int histSize = 256;
+    float range[] = { 0, 256 };
+    const float* histRange[] = { range };
+
+    if (isGrayscaleMode) {
+        // ---- 1. وضع الأبيض وأسود ----
+        // نخفي براويز الأخضر والأزرق عشان نوسع المساحة
+        boxHistG->hide(); boxHistB->hide();
+        boxCdfG->hide();  boxCdfB->hide();
+
+        // نغير عناوين البراويز اللي باقية
+        titleHistR->setText("Histogram (Grayscale)");
+        titleCdfR->setText("Distribution Curve (Grayscale)");
+
+        // نحسب ونرسم للـ Gray
+        cv::Mat gray_hist;
+        cv::calcHist(&grayImg, 1, 0, cv::Mat(), gray_hist, 1, &histSize, histRange);
+
+        cv::Mat gray_cdf = gray_hist.clone();
+        for (int i = 1; i < histSize; i++) gray_cdf.at<float>(i) += gray_cdf.at<float>(i - 1);
+
+        // نرسم بلون رمادي فاتح شيك
+        displayImage(drawChart(gray_hist, cv::Scalar(180, 180, 180), false), histRLabel);
+        displayImage(drawChart(gray_cdf, cv::Scalar(180, 180, 180), true), cdfRLabel);
+
+    } else {
+        // ---- 2. وضع الألوان RGB ----
+        // نظهر كل البراويز تاني
+        boxHistG->show(); boxHistB->show();
+        boxCdfG->show();  boxCdfB->show();
+
+        // نرجع العناوين لأصلها
+        titleHistR->setText("Histogram (Red)");
+        titleCdfR->setText("Distribution Curve (Red)");
+
+        cv::Mat colorWorkImg = processedImage.clone();
+        if (colorWorkImg.channels() == 1) cv::cvtColor(colorWorkImg, colorWorkImg, cv::COLOR_GRAY2BGR);
+
+        std::vector<cv::Mat> bgr_planes;
+        cv::split(colorWorkImg, bgr_planes);
+
+        cv::Mat b_hist, g_hist, r_hist;
+        cv::calcHist(&bgr_planes[0], 1, 0, cv::Mat(), b_hist, 1, &histSize, histRange);
+        cv::calcHist(&bgr_planes[1], 1, 0, cv::Mat(), g_hist, 1, &histSize, histRange);
+        cv::calcHist(&bgr_planes[2], 1, 0, cv::Mat(), r_hist, 1, &histSize, histRange);
+
+        displayImage(drawChart(r_hist, cv::Scalar(0, 0, 255), false), histRLabel);
+        displayImage(drawChart(g_hist, cv::Scalar(0, 255, 0), false), histGLabel);
+        displayImage(drawChart(b_hist, cv::Scalar(255, 0, 0), false), histBLabel);
+
+        cv::Mat b_cdf = b_hist.clone(), g_cdf = g_hist.clone(), r_cdf = r_hist.clone();
+        for (int i = 1; i < histSize; i++) {
+            b_cdf.at<float>(i) += b_cdf.at<float>(i - 1);
+            g_cdf.at<float>(i) += g_cdf.at<float>(i - 1);
+            r_cdf.at<float>(i) += r_cdf.at<float>(i - 1);
+        }
+
+        displayImage(drawChart(r_cdf, cv::Scalar(0, 0, 255), true), cdfRLabel);
+        displayImage(drawChart(g_cdf, cv::Scalar(0, 255, 0), true), cdfGLabel);
+        displayImage(drawChart(b_cdf, cv::Scalar(255, 0, 0), true), cdfBLabel);
+    }
+}
+
+// زراير العمليات
+void HistogramTab::onEqualizeClicked() {
+    if (processedImage.empty()) return;
+    if (processedImage.channels() == 1) {
+        cv::equalizeHist(processedImage, processedImage);
+    } else {
+        cv::Mat ycrcb;
+        cv::cvtColor(processedImage, ycrcb, cv::COLOR_BGR2YCrCb);
+        std::vector<cv::Mat> channels;
+        cv::split(ycrcb, channels);
+        cv::equalizeHist(channels[0], channels[0]);
+        cv::merge(channels, ycrcb);
+        cv::cvtColor(ycrcb, processedImage, cv::COLOR_YCrCb2BGR);
+    }
+    updateViews();
+}
+
+void HistogramTab::onNormalizeClicked() {
+    if (processedImage.empty()) return;
+    cv::normalize(processedImage, processedImage, 0, 255, cv::NORM_MINMAX);
+    updateViews();
+}
+
+void HistogramTab::onResetClicked() {
+    if (sourceImage.empty()) return;
+    processedImage = sourceImage.clone();
+    updateViews();
+}

@@ -1,0 +1,32 @@
+# ninja log v6
+29	1151	7944449142016218	Task1_autogen/timestamp	2a6827203ca5f127
+29	1151	7944449142016218	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/timestamp	2a6827203ca5f127
+1243	7061	7938167144161736	CMakeFiles/Task1.dir/main.cpp.obj	208e1a9518968ad7
+1249	7461	7938167144211697	CMakeFiles/Task1.dir/mainwindow.cpp.obj	2d51a77eb51820d9
+29	1151	7944449142016218	Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+29	1151	7944449142016218	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+1254	7373	7938167144271761	CMakeFiles/Task1.dir/hisrogramtab.cpp.obj	3bd94bcb383b0420
+1239	7064	7938167144121739	CMakeFiles/Task1.dir/Task1_autogen/mocs_compilation.cpp.obj	584b41bd57cf8598
+7461	9964	7938167206338529	Task1.exe	9910ad9faf496a86
+27	871	7944499085413887	Task1_autogen/timestamp	2a6827203ca5f127
+27	871	7944499085413887	Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+27	871	7944499085413887	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/timestamp	2a6827203ca5f127
+27	871	7944499085413887	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+875	9554	7944499086297494	CMakeFiles/Task1.dir/main.cpp.obj	208e1a9518968ad7
+889	9557	7944499086375009	CMakeFiles/Task1.dir/frequencytab.cpp.obj	53e2f17149485aef
+884	9573	7944499086375009	CMakeFiles/Task1.dir/hisrogramtab.cpp.obj	3bd94bcb383b0420
+872	9576	7944499086257044	CMakeFiles/Task1.dir/Task1_autogen/mocs_compilation.cpp.obj	584b41bd57cf8598
+879	9586	7944499086317136	CMakeFiles/Task1.dir/mainwindow.cpp.obj	2d51a77eb51820d9
+9586	14818	7944499173386388	Task1.exe	f6f96a5ac5bbcb63
+27	599	7988983003698655	Task1_autogen/timestamp	2a6827203ca5f127
+27	599	7988983003698655	Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+27	599	7988983003698655	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/timestamp	2a6827203ca5f127
+27	599	7988983003698655	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+600	6822	7988983009413955	CMakeFiles/Task1.dir/frequencytab.cpp.obj	53e2f17149485aef
+6823	10942	7988983071650033	Task1.exe	f6f96a5ac5bbcb63
+25	219	7988984415613607	Task1_autogen/timestamp	2a6827203ca5f127
+25	219	7988984415613607	Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+25	219	7988984415613607	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/timestamp	2a6827203ca5f127
+25	219	7988984415613607	D:/Alaa/Third_Year_SBME27/Second_Semester/Computer Vision/Tasks/Task1/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/Task1_autogen/mocs_compilation.cpp	2a6827203ca5f127
+220	4602	7988984417577693	CMakeFiles/Task1.dir/frequencytab.cpp.obj	53e2f17149485aef
+4602	5404	7988984461393166	Task1.exe	f6f96a5ac5bbcb63
