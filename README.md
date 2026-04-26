@@ -1,5 +1,3 @@
-# Image-Processing-Toolbox
-
 # 🎨 Image Processing Toolbox
 An interactive **C++/Qt** application for advanced image manipulation, filtering, and frequency analysis. Developed for the **Computer Vision** course (SBME 2027).
 
